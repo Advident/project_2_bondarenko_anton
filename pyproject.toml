@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "project2-bondarenko-anton"
+version = "0.1.0"
+description = "Primitive DB"
+readme = "README.md"
+
+packages = [
+    { include = "primitive_db", from = "src" }
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+database = "primitive_db.main:main"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+prompt = "^0.4.1"
+prettytable = "^3.17.0"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.14.11,<0.15.0)"
+]

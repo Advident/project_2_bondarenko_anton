@@ -1,0 +1,9 @@
+# Poetry/виртуальное окружение/сборка
+.venv/
+dist/
+__pycache__/
+*.pyc
+
+# Данные БД
+db_meta.json
+data/
