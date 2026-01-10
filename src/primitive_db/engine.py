@@ -10,8 +10,11 @@ engine.py
 - загрузку / сохранение данных через utils.py
 """
 
+from __future__ import annotations
+
 import re
 import shlex
+from typing import Any
 
 import prompt
 from prettytable import PrettyTable
@@ -53,8 +56,11 @@ def print_help() -> None:
     print("<command> exit - выход\n")
 
 
-def _print_table(rows: list[dict], columns: list[str]) -> None:
-    """Выводит список словарей в виде таблицы PrettyTable."""
+def _print_table(rows: list[dict[str, Any]], columns: list[str]) -> None:
+    """
+    Печатает строки (list[dict]) через PrettyTable.
+    columns задаёт порядок вывода столбцов.
+    """
     table = PrettyTable()
     table.field_names = columns
 
@@ -65,7 +71,7 @@ def _print_table(rows: list[dict], columns: list[str]) -> None:
 
 
 def run() -> None:
-    """Основной цикл программы (REPL)."""
+    """Основной цикл программы."""
     print_help()
 
     while True:
@@ -76,10 +82,12 @@ def run() -> None:
         raw = user_input
         low = raw.lower()
 
-        # Загружаем метаданные при каждой итерации
+        # Метаданные загружаем на каждой итерации: так мы видим актуальное состояние
         metadata = load_metadata(META_FILE)
 
+        # --------------------
         # Общие команды
+        # --------------------
         if low == "exit":
             return
 
@@ -87,9 +95,13 @@ def run() -> None:
             print_help()
             continue
 
-        # CRUD-КОМАНДЫ
+        # ============================================================
+        # CRUD-команды
+        # ============================================================
+
         # ---------- INSERT ----------
         if low.startswith("insert "):
+            # Пример: insert into users values ("Sergei", 28, true)
             match = re.match(
                 r'^\s*insert\s+into\s+(\w+)\s+values\s*(\(.*\))\s*$',
                 raw,
@@ -110,21 +122,26 @@ def run() -> None:
 
             table_data = load_table_data(table_name)
 
-            try:
-                table_data, new_id = insert(metadata, table_name, values, table_data)
-            except KeyError:
-                print(f'Ошибка: Таблица "{table_name}" не существует.')
-                continue
-            except ValueError as e:
-                print(e)
+            # insert обёрнут декораторами -> может вернуть None
+            result = insert(
+                metadata=metadata,
+                table_name=table_name,
+                values=values,
+                table_data=table_data,
+            )
+            if result is None:
                 continue
 
+            table_data, new_id = result
             save_table_data(table_name, table_data)
             print(f'Запись с ID={new_id} успешно добавлена в таблицу "{table_name}".')
             continue
 
         # ---------- SELECT ----------
         if low.startswith("select "):
+            # Пример:
+            # select from users
+            # select from users where age = 28
             match = re.match(
                 r'^\s*select\s+from\s+(\w+)(?:\s+where\s+(.*))?$',
                 raw,
@@ -137,8 +154,6 @@ def run() -> None:
             table_name = match.group(1)
             where_expr = match.group(2)
 
-            table_data = load_table_data(table_name)
-
             where_clause = None
             if where_expr:
                 try:
@@ -147,20 +162,29 @@ def run() -> None:
                     print(e)
                     continue
 
-            try:
-                rows = select(table_data, where_clause)
-            except ValueError as e:
-                print(e)
-                continue
+            table_data = load_table_data(table_name)
 
-            try:
-                columns = [c["name"] for c in metadata[table_name]["columns"]]
-            except KeyError:
-                print(f'Ошибка: Таблица "{table_name}" не существует.')
+            # select обёрнут декораторами -> может вернуть None
+            rows = select(
+                metadata=metadata,
+                table_name=table_name,
+                table_data=table_data,
+                where_clause=where_clause,
+            )
+            if rows is None:
+                # Ошибка уже выведена декоратором handle_db_errors
                 continue
 
             if not rows:
                 print("(нет данных)")
+                continue
+
+            # Порядок столбцов берём из схемы в metadata
+            try:
+                columns = [c["name"] for c in metadata[table_name]["columns"]]
+            except KeyError:
+                # На всякий случай, хотя core/select уже должен был сообщить
+                print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
 
             _print_table(rows, columns)
@@ -168,6 +192,7 @@ def run() -> None:
 
         # ---------- UPDATE ----------
         if low.startswith("update "):
+            # Пример: update users set age = 29 where name = "Sergei"
             match = re.match(
                 r'^\s*update\s+(\w+)\s+set\s+(.*?)\s+where\s+(.*)$',
                 raw,
@@ -189,7 +214,19 @@ def run() -> None:
                 continue
 
             table_data = load_table_data(table_name)
-            table_data, updated_ids = update(table_data, set_clause, where_clause)
+
+            # update обёрнут декораторами -> может вернуть None
+            result = update(
+                metadata=metadata,
+                table_name=table_name,
+                table_data=table_data,
+                set_clause=set_clause,
+                where_clause=where_clause,
+            )
+            if result is None:
+                continue
+
+            table_data, updated_ids = result
             save_table_data(table_name, table_data)
 
             if updated_ids:
@@ -200,6 +237,7 @@ def run() -> None:
 
         # ---------- DELETE ----------
         if low.startswith("delete "):
+            # Пример: delete from users where ID = 1
             match = re.match(
                 r'^\s*delete\s+from\s+(\w+)\s+where\s+(.*)$',
                 raw,
@@ -219,7 +257,19 @@ def run() -> None:
                 continue
 
             table_data = load_table_data(table_name)
-            table_data, deleted_ids = delete(table_data, where_clause)
+
+            # delete обёрнут confirm_action + handle_db_errors -> может вернуть None
+            result = delete(
+                metadata=metadata,
+                table_name=table_name,
+                table_data=table_data,
+                where_clause=where_clause,
+            )
+            if result is None:
+                # либо ошибка, либо пользователь отменил операцию
+                continue
+
+            table_data, deleted_ids = result
             save_table_data(table_name, table_data)
 
             if deleted_ids:
@@ -238,13 +288,17 @@ def run() -> None:
             table_name = parts[1]
             table_data = load_table_data(table_name)
 
-            try:
-                print(info(metadata, table_name, table_data))
-            except KeyError:
-                print(f'Ошибка: Таблица "{table_name}" не существует.')
+            # info обёрнут декораторами -> может вернуть None
+            result = info(metadata, table_name, table_data)
+            if result is None:
+                continue
+
+            print(result)
             continue
 
-        # КОМАНДЫ УПРАВЛЕНИЯ ТАБЛИЦАМИ (через shlex)
+        # ============================================================
+        # Команды управления таблицами (можно через shlex)
+        # ============================================================
         try:
             args = shlex.split(raw)
         except ValueError:
@@ -265,13 +319,11 @@ def run() -> None:
             table_name = args[1]
             columns = args[2:]
 
-            try:
-                metadata = create_table(metadata, table_name, columns)
-            except ValueError as e:
-                print(e)
+            result = create_table(metadata, table_name, columns)
+            if result is None:
                 continue
 
-            save_metadata(META_FILE, metadata)
+            save_metadata(META_FILE, result)
             continue
 
         if cmd == "drop_table":
@@ -279,9 +331,13 @@ def run() -> None:
                 print("Некорректное значение: drop_table. Попробуйте снова.")
                 continue
 
-            metadata = drop_table(metadata, args[1])
-            save_metadata(META_FILE, metadata)
+            result = drop_table(metadata, args[1])
+            if result is None:
+                # пользователь мог отменить удаление
+                continue
+
+            save_metadata(META_FILE, result)
             continue
 
-        # ------------------------------------------------------------
+        # Если команда не распознана
         print(f"Функции {cmd} нет. Попробуйте снова.")

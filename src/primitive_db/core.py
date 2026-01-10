@@ -21,6 +21,8 @@ from decorators import confirm_action, create_cacher, handle_db_errors, log_time
 
 from .constants import VALID_TYPES
 
+from .utils import delete_table_data
+
 # Кэшер (замыкание) для select
 _CACHER = create_cacher()
 
@@ -161,6 +163,7 @@ def drop_table(metadata: dict[str, Any], table_name: str) -> dict[str, Any] | No
         return metadata
 
     del metadata[table_name]
+    delete_table_data(table_name)   # <-- ВАЖНО
     print(f'Таблица "{table_name}" успешно удалена.')
     return metadata
 

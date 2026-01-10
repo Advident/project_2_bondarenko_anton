@@ -46,3 +46,14 @@ def save_table_data(table_name: str, data: list[dict[str, Any]]) -> None:
     path = os.path.join("data", f"{table_name}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def delete_table_data(table_name: str) -> None:
+    """
+    Удаляет файл данных таблицы data/<table_name>.json, если он существует.
+    Используется при drop_table для полного удаления таблицы.
+    """
+    path = os.path.join("data", f"{table_name}.json")
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
