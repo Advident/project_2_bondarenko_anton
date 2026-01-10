@@ -2,6 +2,7 @@
 name = "project2-bondarenko-anton"
 version = "0.1.0"
 description = "Primitive DB"
+authors = ["Anton Bondarenko <advident@gmail.com>"]
 readme = "README.md"
 
 packages = [
