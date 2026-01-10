@@ -38,3 +38,7 @@
 - `confirm_action` — подтверждение опасных операций (удаление таблиц/записей).
 - `log_time` — замер времени выполнения операций.
 - `select` использует кэширование результатов одинаковых запросов.
+
+## Демонстрация игрового процесса (asciinema)
+
+[![asciinema](https://asciinema.org/a/3TdfPXAjr6FUQOAN)](https://asciinema.org/a/3TdfPXAjr6FUQOAN)
