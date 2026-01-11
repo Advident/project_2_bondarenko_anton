@@ -39,6 +39,6 @@
 - `log_time` — замер времени выполнения операций.
 - `select` использует кэширование результатов одинаковых запросов.
 
-## Демонстрация игрового процесса (asciinema)
+## Демонстрация процесса (asciinema)
 
 [![asciinema](https://asciinema.org/a/3TdfPXAjr6FUQOAN)](https://asciinema.org/a/3TdfPXAjr6FUQOAN)
